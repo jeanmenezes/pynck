@@ -1,0 +1,63 @@
+#!/usr/bin/python2
+
+from subprocess import check_call
+import argparse
+import wave
+import contextlib
+import os
+
+def argSetup():
+    parser = argparse.ArgumentParser("perform cross-synthesis of two given files")
+    parser.add_argument("mag", help="wav file providing magnitude", action='store')
+    parser.add_argument("pha", help="wav file providing phase", action='store')
+    parser.add_argument("-s", "--swap", help="swap function of both files", action='store_true')
+    parser.add_argument("-m", "--method", help="method used to match lengths (stretch/repeat)", choices=['stretch', 'repeat'])
+    parser.add_argument("-o", "--output", help="output to .wav file", action='store')
+
+    return parser.parse_args()
+
+
+def compWavs(w1, w2):
+    with contextlib.closing(wave.open(w1)) as m:
+        frames = m.getnframes()
+        rate = m.getframerate()
+        durmag = frames / float(rate)
+    with contextlib.closing(wave.open(w2)) as p:
+        frames = p.getnframes()
+        rate = p.getframerate()
+        durpha = frames / float(rate)
+    return [max(durmag, durpha), durmag/durpha if durmag > durpha else durpha/durmag, w1 if durmag < durpha else w2]
+
+
+if __name__ == "__main__":
+    args = argSetup()
+    ratios = compWavs(args.mag, args.pha)
+
+    if args.method == "stretch":
+        import stretch
+        (samplerate, smp) = stretch.load_wav(ratios[2])
+        stretch.paulstretch(samplerate,smp,ratios[1],0.08,"stretched.wav")
+        mag = "stretched.wav" if args.mag == ratios[2] else args.mag
+        pha = "stretched.wav" if args.pha == ratios[2] else args.pha
+    else:
+        mag = args.mag
+        pha = args.pha
+
+    if not args.swap:
+        thecommand = "chuck -s cross_{0}.ck:{1}:{2}".format(args.method, mag, pha).split(" ")
+    else:
+        thecommand = "chuck -s cross_{0}.ck:{1}:{2}".format(args.method, pha, mag).split(" ")
+
+    if args.output:
+        thecommand.append("rec.ck:{0}:{1}".format(args.output, ratios[0]))
+
+    normcommand = "ffmpeg-normalize -p n -m -f {0}".format(args.output).split(" ")
+
+    check_call(thecommand)
+    check_call(normcommand)
+    os.rename("n-"+args.output, args.output)
+
+    if os.path.exists("stretched.wav"):
+        os.remove("stretched.wav")
+    if os.path.exists("stripped.wav"):
+        os.remove("stripped.wav")
