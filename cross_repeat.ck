@@ -32,7 +32,7 @@ while( now < later ) {
     blobY.cvals() @=> complex Yspec[];
 
     for ( 0 => int i; i < Xmag.cap(); i++ ) {
-        Math.sqrt( Xmag[i] ) * Yspec[i] => Z[i];
+        Xmag[i] * ( Yspec[i] / Ymag[i] ) => Z[i];
     }
     ifft.transform(Z);
     HOP_SIZE +=> count;

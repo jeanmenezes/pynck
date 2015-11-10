@@ -54,8 +54,8 @@ if __name__ == "__main__":
     normcommand = "ffmpeg-normalize -p n -m -f {0}".format(args.output).split(" ")
 
     check_call(thecommand)
-    check_call(normcommand)
-    os.rename("n-"+args.output, args.output)
+    #check_call(normcommand)
+    #os.rename("n-"+args.output, args.output)
 
     if os.path.exists("stretched.wav"):
         os.remove("stretched.wav")
